@@ -4,12 +4,15 @@ import {
   isArray,
   contains,
   toArray,
-  keys
+  keys,
+  bindAll
 } from 'underscore';
+import $ from 'cash-dom';
 import Backbone from 'backbone';
 import Extender from 'utils/extender';
 import { getModel } from 'utils/mixins';
 
+Backbone.$ = $;
 const deps = [
   require('utils'),
   require('i18n'),
@@ -43,7 +46,6 @@ Extender({
   $: Backbone.$
 });
 
-const $ = Backbone.$;
 const logs = {
   debug: console.log,
   info: console.info,
@@ -79,6 +81,7 @@ export default Backbone.Model.extend({
     const el = c.el;
     const log = c.log;
     const toLog = log === true ? keys(logs) : isArray(log) ? log : [];
+    bindAll(this, 'initBaseColorPicker');
 
     if (el && c.fromElement) this.config.components = el.innerHTML;
     this.attrsOrig = el
@@ -289,7 +292,6 @@ export default Backbone.Model.extend({
    * @private
    */
   setSelected(el, opts = {}) {
-    const { scroll } = opts;
     const multiple = isArray(el);
     const els = multiple ? el : [el];
     const selected = this.get('selected');
@@ -306,8 +308,6 @@ export default Backbone.Model.extend({
       this.addSelected(model, opts);
       added = model;
     });
-
-    scroll && added && this.get('Canvas').scrollTo(added, scroll);
   },
 
   /**
@@ -368,6 +368,10 @@ export default Backbone.Model.extend({
     if (model && !model.get('hoverable')) return;
     opts.forceChange && this.set('componentHovered', '');
     this.set('componentHovered', model, opts);
+  },
+
+  getHovered() {
+    return this.get('componentHovered');
   },
 
   /**
@@ -635,6 +639,18 @@ export default Backbone.Model.extend({
     return this.get('DomComponents').getWrapper();
   },
 
+  setCurrentFrame(frameView) {
+    return this.set('currentFrame', frameView);
+  },
+
+  getCurrentFrame() {
+    return this.get('currentFrame');
+  },
+
+  getCurrentFrameModel() {
+    return (this.getCurrentFrame() || {}).model;
+  },
+
   /**
    * Return the count of changes made to the content and not yet stored.
    * This count resets at any `store()`
@@ -646,6 +662,10 @@ export default Backbone.Model.extend({
 
   getZoomDecimal() {
     return this.get('Canvas').getZoomDecimal();
+  },
+
+  getZoomMultiplier() {
+    return this.get('Canvas').getZoomMultiplier();
   },
 
   setDragMode(value) {
@@ -722,6 +742,26 @@ export default Backbone.Model.extend({
 
   logError(msg, opts) {
     this.log(msg, { ...opts, level: 'error' });
+  },
+
+  initBaseColorPicker(el, opts = {}) {
+    const config = this.getConfig();
+    const { colorPicker = {} } = config;
+    const elToAppend = config.el;
+    const ppfx = config.stylePrefix;
+
+    return $(el).spectrum({
+      containerClassName: `${ppfx}one-bg ${ppfx}two-color`,
+      appendTo: elToAppend || 'body',
+      maxSelectionSize: 8,
+      showPalette: true,
+      palette: [],
+      showAlpha: true,
+      chooseText: 'Ok',
+      cancelText: '⨯',
+      ...opts,
+      ...colorPicker
+    });
   },
 
   /**
